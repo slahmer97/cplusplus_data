@@ -6,6 +6,7 @@
 #define SIDAHMEDHMAR_NODE_H
 
 #include "iostream"
+#include "defs.h"
 
 class Node {
 private:
@@ -19,6 +20,8 @@ public:
         long long int passed_by_me;
         long long int for_me;
         bool is_done;
+
+        std::vector<stat> stat_r;
 public:
         inline Node(const std::string& n){
             name = n;

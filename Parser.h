@@ -19,12 +19,7 @@ public:
         csvstream parser(filePath, ',');
         std::vector<std::pair<std::string, std::string>> row;
         while (parser >> row) {
-            //std::cout << "row:" << "\n";
-            //for (unsigned int i=0; i < row.size(); ++i) {
-              //  const std::string &column_name = row[i].first;
-               // const std::string &datum = row[i].second;
-               // std::cout <<column_name<<"\t"<< datum << "\n";
-            //}
+
             double time = std::stod(row[0].second);
             int code = std::stoi(row[1].second);;
             int packetIdentifier = std::stoi(row[2].second);;

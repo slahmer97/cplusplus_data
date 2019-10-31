@@ -7,8 +7,8 @@
 #include "GeneratedPacketCounter.h"
 std::unordered_map<std::string,Node*> GeneratedPacketCounter::nodes;
 std::map<long long int,PacketHis*> GeneratedPacketCounter::packetHistory;
-std::unordered_map<std::string,std::pair<long,long double>> GeneratedPacketCounter::tt;
-std::pair<long,long double> GeneratedPacketCounter::trans_link = std::make_pair(0,0.0);
+std::unordered_map<std::string,end_to_end> GeneratedPacketCounter::tt;
+trans GeneratedPacketCounter::trans_link ;
 std::unordered_map<std::string,Interface*> GeneratedPacketCounter::interfaces;
 std::vector<stat> GeneratedPacketCounter::packet_in_net;
 
@@ -37,27 +37,31 @@ void GeneratedPacketCounter::onPacketGenerated(double time, int pid, int fid, co
 
     stat t;
     t.time = time;
-    t.packet_num = 0;
+    t.packet_num = 1;
     t.dropped_num = 0;
-    t.last_sec = 1;
+    t.last_sec = .5; //===============
+    t.garb = 0;
 
-    if(!packet_in_net.empty() && packet_in_net[index].time == time)
+    if(!packet_in_net.empty() && packet_in_net[index].time == time){
         packet_in_net[index].packet_num++;
+    }
     else if(packet_in_net.empty())
         packet_in_net.emplace_back(t);
 
     else{
         t.packet_num = packet_in_net[index].packet_num+1;
 
-        if(time < packet_in_net[index].last_sec ){
+        if(time <= packet_in_net[index].last_sec ){
             t.dropped_num = packet_in_net[index].dropped_num;
             t.last_sec = packet_in_net[index].last_sec;
+            t.garb = 0;
         }
         else{
             t.dropped_num = 0;
-            t.last_sec = packet_in_net[index].last_sec+1;
+            packet_in_net[index-1].garb = 1;
+            t.last_sec = packet_in_net[index].last_sec+0.5;
         }
-        t.last_sec = packet_in_net[index].last_sec;
+
         packet_in_net.emplace_back(t);
 
     }
@@ -87,8 +91,9 @@ void GeneratedPacketCounter::onPacketReceived(double time, int pid, int fid, con
 
 
     packet->arriv = time;
-    trans_link.first ++;
-    trans_link.second += time-packet->dep;
+    trans_link.count ++;
+    trans_link.X += time-packet->dep;
+    trans_link.V += (time-packet->dep)*(time-packet->dep);
     packet->curr_node = nodes[pos];
 
 }
@@ -117,31 +122,37 @@ void GeneratedPacketCounter::onPacketReachedDestination(double time, int pid, in
 
     PacketHis* packet = packetHistory[pid];
 
-    trans_link.first++;
-    trans_link.second += time-packet->dep;
+    trans_link.count++;
+    trans_link.X += time-packet->dep;
+    trans_link.V += (time-packet->dep)*(time-packet->dep);
 
     long double sent_time = time - packet->generated_at;
     add_tt(src,dst,sent_time);
     delete(packet);
 
     unsigned long index = packet_in_net.size()-1;
-    if(packet_in_net[index].time == time){
+    if(packet_in_net[index].time <= time){
         packet_in_net[index].packet_num--;
     }
     else{
 
         stat t;
         t.time = time;
+        t.packet_num = packet_in_net[index].packet_num-1;
+
+
         if(time <=  packet_in_net[index].last_sec){
             t.dropped_num = packet_in_net[index].dropped_num;
             t.last_sec = packet_in_net[index].last_sec;
+            t.garb = 0;
         }
         else{
-            t.dropped_num = 1;
-            t.last_sec = packet_in_net[index].last_sec+1;
+            t.dropped_num = 0;
+            packet_in_net[index-1].garb = 1;
+            t.last_sec = packet_in_net[index].last_sec+.5;
         }
 
-        t.packet_num = packet_in_net[index].packet_num-1;
+
         packet_in_net.emplace_back(t);
     }
 
@@ -180,10 +191,12 @@ void GeneratedPacketCounter::onPacketDropped(double time, int pid, int fid, cons
         if(time <=  packet_in_net[index].last_sec){
             t.dropped_num = packet_in_net[index].dropped_num;
             t.last_sec = packet_in_net[index].last_sec;
+            t.garb = 0;
         }
         else{
             t.dropped_num = 1;
-            t.last_sec = packet_in_net[index].last_sec+1;
+            t.last_sec = packet_in_net[index].last_sec+.5;
+            packet_in_net[index-1].garb = 1;
         }
 
         t.packet_num = packet_in_net[index].packet_num-1;

@@ -20,8 +20,8 @@ class GeneratedPacketCounter {
         GeneratedPacketCounter() = default;
         static std::unordered_map<std::string,Node*> nodes;
         static std::map<long long int,PacketHis*> packetHistory;
-        static std::unordered_map<std::string,std::pair<long,long double>> tt;
-        static std::pair<long,long double> trans_link;
+        static std::unordered_map<std::string,end_to_end> tt;
+        static trans trans_link;
         static std::unordered_map<std::string,Interface*> interfaces;
         static std::vector<stat> packet_in_net;
 
@@ -42,17 +42,25 @@ class GeneratedPacketCounter {
             std::string tmp2 = dst+src;
 
             if(tt.find(tmp) == tt.end() && tt.find(tmp2) == tt.end()){
-                tt[tmp] = std::make_pair<long,long double>(1, reinterpret_cast<long double &&>(t_time));
+                end_to_end t;
+                t.count = 1;
+                t.X = t_time;
+                t.V = t_time*t_time;
+                tt[tmp] = t;
                 return;
             }
             if(tt.find(tmp) != tt.end()){
-                tt[tmp].first++;
-                tt[tmp].second += t_time;
+                tt[tmp].count++;
+                tt[tmp].X += t_time;
+                tt[tmp].V += t_time*t_time;
+
                 return;
             }
             if(tt.find(tmp2) != tt.end()){
-                tt[tmp2].first++;
-                tt[tmp2].second += t_time;
+                tt[tmp2].count++;
+                tt[tmp2].X += t_time;
+                tt[tmp2].V += t_time*t_time;
+
                 return;
             }
 
@@ -65,12 +73,15 @@ class GeneratedPacketCounter {
                 Node* tmp = new Node(node);
                 GeneratedPacketCounter::nodes[node] = tmp;
             }
+            trans_link.count =0;
+            trans_link.X = 0.0;
+            trans_link.V = 0.0;
 
         }
 
         inline static void display(){
 
-            for (std::pair<const std::string , Node *> n : nodes){
+            for (const std::pair<const std::string , Node *>& n : nodes){
                 std::cout<<"[+] "<<n.first<<std::endl;
                 long long int queue_size = (n.second->queue_size != 0 )? n.second->queue_size : n.second->queue_max_size;
                 std::cout<<"\t[+] Queue size   : "<<queue_size<<std::endl;
@@ -81,8 +92,8 @@ class GeneratedPacketCounter {
             }
 
             std::cout<<"\n\n";
-            for (std::pair<const std::string,std::pair<long,long double>> t : tt){
-                std::cout<<"[+] "<<t.first<<"\t : "<<t.second.second /(double)t.second.first<<std::endl;
+            for (std::pair<const std::string,end_to_end> t : tt){
+                std::cout<<"[+] "<<t.first<<"\t : "<<t.second.X /(double)t.second.count<<std::endl;
             }
 
 
@@ -94,31 +105,28 @@ class GeneratedPacketCounter {
 
 
             std::cout<<"\n\n"<<std::endl;
-            std::cout<<"Mean of link transmission : "<<trans_link.second/(double)trans_link.first<<std::endl;
+            std::cout<<"Mean of link transmission : "<<trans_link.X/(double)trans_link.count<<std::endl;
             std::cout<<"[+] Total sent : "<<total_sent<<std::endl<<"[+] Total dropped : "<<total_dropped<<std::endl<<"[+] Total received : "<<total_received<<std::endl;
 
 
             std::ofstream f1("packet_in_net.txt");
             std::ofstream f2("drop.txt");
             long double t = packet_in_net[0].last_sec;
-            long long int max = 0;
             for(unsigned long i=0;i< packet_in_net.size();i += 10){
-                //std::cout<<"[+] "<<packet_in_net[i].first<<"\t :"<<packet_in_net[i].second<<std::endl;
                 std::string tmp = std::to_string(packet_in_net[i].time)+" "+std::to_string(packet_in_net[i].packet_num)+"\n";
                 f1 << tmp;
-                if(t == packet_in_net[i].last_sec){
-                    if(packet_in_net[i].dropped_num > max)
-                        max = packet_in_net[i].dropped_num;
-                }
-                else{
-                    t =  packet_in_net[i].last_sec;
-                    std::string tmp2 = std::to_string(packet_in_net[i].time)+" "+std::to_string(max)+"\n";
-                    max = 0;
-                    f2 << tmp2;
-                }
-
-
             }
+            long double max = 0;
+            bool tiw = false;
+            for(unsigned long i=0;i< packet_in_net.size()-1;i ++){
+                if(packet_in_net[i].garb == 1) {
+                    std::string tmp =  std::to_string(packet_in_net[i].time) + " " + std::to_string(packet_in_net[i].dropped_num) + "\n";
+                    f2 << tmp;
+
+                }
+            }
+
+
         }
         inline static Interface* get_interface(Node* src ,Node* dst){
             std::string tmp = src->getName()+"-"+dst->getName();
