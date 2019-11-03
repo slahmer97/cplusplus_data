@@ -12,6 +12,7 @@ trans GeneratedPacketCounter::trans_link ;
 std::unordered_map<std::string,Interface*> GeneratedPacketCounter::interfaces;
 std::vector<stat> GeneratedPacketCounter::packet_in_net;
 
+std::vector<std::pair<long double,long double>> GeneratedPacketCounter::tt_his;
 
 long long  GeneratedPacketCounter::total_dropped = 0;
 long long  GeneratedPacketCounter::total_received = 0;
@@ -39,7 +40,7 @@ void GeneratedPacketCounter::onPacketGenerated(double time, int pid, int fid, co
     t.time = time;
     t.packet_num = 1;
     t.dropped_num = 0;
-    t.last_sec = .5; //===============
+    t.last_sec = .5;
     t.garb = 0;
 
     if(!packet_in_net.empty() && packet_in_net[index].time == time){
@@ -150,13 +151,13 @@ void GeneratedPacketCounter::onPacketReachedDestination(double time, int pid, in
             t.dropped_num = 0;
             packet_in_net[index-1].garb = 1;
             t.last_sec = packet_in_net[index].last_sec+.5;
+
         }
 
 
         packet_in_net.emplace_back(t);
     }
-
-
+    tt_his.emplace_back(time,get_curr_end_to_end_delay());
 }
 
 void GeneratedPacketCounter::onPacketDropped(double time, int pid, int fid, const std::string &src, const std::string &dst, const std::string &pos) {
@@ -197,10 +198,13 @@ void GeneratedPacketCounter::onPacketDropped(double time, int pid, int fid, cons
             t.dropped_num = 1;
             t.last_sec = packet_in_net[index].last_sec+.5;
             packet_in_net[index-1].garb = 1;
+
         }
 
         t.packet_num = packet_in_net[index].packet_num-1;
         packet_in_net.emplace_back(t);
     }
+
+
 
 }

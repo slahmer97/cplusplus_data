@@ -11,7 +11,6 @@ typedef struct stat_s{
     long long int packet_num;
     long long int dropped_num;
 
-
     int garb;
     long double last_sec;
 }stat;
